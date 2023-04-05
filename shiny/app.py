@@ -8,7 +8,7 @@ import openai
 # rsconnect deploy shiny <PATH> --name y-yin --title WYNChat
 
 def jarvis(prompt: str, topic: any):
-    openai.api_key = "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"
+    openai.api_key = "<ENTER_API_KEY_HERE>"
 
     if topic is None:
         topic = "Random"
