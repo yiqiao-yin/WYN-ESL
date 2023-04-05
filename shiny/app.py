@@ -5,7 +5,7 @@ from shiny.ui import h4
 import openai
 
 # shiny run shiny\app.py
-# rsconnect deploy shiny <PATH> --name y-yin --title WYNChat
+# rsconnect deploy shiny <PATH> --name ACCOUNT_NAME --title APP_NAME
 
 def jarvis(prompt: str, topic: any):
     openai.api_key = "<ENTER_API_KEY_HERE>"
