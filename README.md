@@ -2,6 +2,8 @@
 
 This Shiny app provides an interactive interface to communicate with OpenAI's GPT-3 model using the `jarvis` function. The app consists of a frontend for user input and a server-side backend for handling the GPT-3 model interaction.
 
+<p align='center'><img src="https://github.com/yiqiao-yin/WYN-ESL/blob/main/docs/main.png"></img></p>
+
 ## Structure
 
 The Shiny app is located in the `shiny` folder in the main Git repository. The main script, `app.py`, is responsible for running the app and contains both the frontend and server-side code.
