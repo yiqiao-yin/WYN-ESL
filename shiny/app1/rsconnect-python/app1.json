@@ -1,11 +1,11 @@
 {
     "https://api.shinyapps.io": {
         "server_url": "https://api.shinyapps.io",
-        "filename": "C:\\Users\\eagle\\Documents\\repo\\jonathan\\app\\shiny",
+        "filename": "C:\\Users\\eagle\\Documents\\repo\\jonathan\\public\\WYN-ESL\\shiny\\app1",
         "app_url": "https://y-yin.shinyapps.io/wynchat/",
-        "app_id": 8768103,
+        "app_id": 8862280,
         "app_guid": null,
-        "title": "WYNChat",
+        "title": "wynchat",
         "app_mode": "python-shiny"
     }
 }
