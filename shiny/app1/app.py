@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import List
 from shiny import *
-from shiny.types import NavSetArg
+# from shiny.types import NavSetArg
 from shiny.ui import h4
 import openai
 import urllib.request
@@ -11,7 +11,7 @@ import urllib.request
 
 # shiny run shiny\app.py
 # rsconnect deploy shiny <PATH> --name ACCOUNT_NAME --title APP_NAME
-openai.api_key = "<ENTER_API_KEY_HERE>"
+openai.api_key = "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"
 
 def jarvis(prompt: str, topic: any) -> str:
 
@@ -40,7 +40,7 @@ def jarvis(prompt: str, topic: any) -> str:
 
 def chinese_to_english(prompt: str) -> str:
 
-    prompt = f"Translate the following Chinese into English: {prompt}"
+    prompt = f"Translate the following Chinese into English: {prompt}. If it's already in English, just correct it's grammar."
 
     response = openai.Completion.create(
         model="text-davinci-003",
@@ -76,6 +76,7 @@ def text_to_img(prompt: str) -> np.ndarray:
         n=1,
         size="1024x1024"
     )
+
     image_url = response['data'][0]['url']
     image = url_to_image(image_url)
 
@@ -170,7 +171,7 @@ app_ui = ui.page_fluid(
                         ui.column(
                             8,
                             ui.div(
-                                ui.input_action_button("chinese_to_english", "Translate Chinese into English and then image!"),
+                                ui.input_action_button("chinese_to_english", "Type your idea, and create an image!"),
                             ),
                         )
                     ),
@@ -183,7 +184,7 @@ app_ui = ui.page_fluid(
                                 {"class": "app-col"},
                                 ui.input_text_area(
                                     "chinese_to_english_input",
-                                    "Text input",
+                                    "Enter Chinese or English / 输入中英文即可",
                                     width="100%",
                                     placeholder="请输入中文描述一张你脑海里的图片",
                                 ),
@@ -253,7 +254,7 @@ def server(input, output, session):
         output = chinese_to_english(
             prompt=input.chinese_to_english_input(),
         )
-        return f"English: {output}"
+        return f"Processed prompt in English: {output}"
 
     @output
     @render.plot
@@ -264,7 +265,8 @@ def server(input, output, session):
         )
         img = text_to_img(output)
 
-        return plt.imshow(img)
+        return plt.imshow(img[:, :, ::-1])
+
 
 
 app = App(app_ui, server, debug=True)
