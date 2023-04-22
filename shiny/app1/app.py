@@ -11,7 +11,7 @@ import urllib.request
 
 # shiny run shiny\app.py
 # rsconnect deploy shiny <PATH> --name ACCOUNT_NAME --title APP_NAME
-openai.api_key = "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"
+openai.api_key = "<ENTER API KEY HERE>"
 
 def jarvis(prompt: str, topic: any) -> str:
 
