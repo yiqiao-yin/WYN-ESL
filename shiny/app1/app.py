@@ -1,20 +1,22 @@
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import List
-from shiny import *
-# from shiny.types import NavSetArg
-from shiny.ui import h4
-import openai
 import urllib.request
+from typing import Union
 
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import openai
+import shinyswatch
+from shiny import *
 
 # shiny run shiny\app.py
 # rsconnect deploy shiny <PATH> --name ACCOUNT_NAME --title APP_NAME
-openai.api_key = "<ENTER API KEY HERE>"
+import os
+from dotenv import load_dotenv, find_dotenv
+_ = load_dotenv(find_dotenv()) # read local .env file
 
-def jarvis(prompt: str, topic: any) -> str:
+openai.api_key  = os.getenv('OPENAI_API_KEY')
 
+def jarvis(prompt: str, topic: Union[None, str]) -> str:
     if topic is None:
         topic = "Random"
 
@@ -39,7 +41,6 @@ def jarvis(prompt: str, topic: any) -> str:
 
 
 def chinese_to_english(prompt: str) -> str:
-
     prompt = f"Translate the following Chinese into English: {prompt}. If it's already in English, just correct it's grammar."
 
     response = openai.Completion.create(
@@ -58,7 +59,6 @@ def chinese_to_english(prompt: str) -> str:
 
 
 def url_to_image(url: str) -> np.ndarray:
-
     # Download the image using urllib
     with urllib.request.urlopen(url) as url_response:
         img_array = bytearray(url_response.read())
@@ -71,25 +71,27 @@ def url_to_image(url: str) -> np.ndarray:
 
 
 def text_to_img(prompt: str) -> np.ndarray:
-    response = openai.Image.create(
-        prompt=prompt,
-        n=1,
-        size="1024x1024"
-    )
+    response = openai.Image.create(prompt=prompt, n=1, size="1024x1024")
 
-    image_url = response['data'][0]['url']
+    image_url = response["data"][0]["url"]
     image = url_to_image(image_url)
 
     return image
 
+
 app_ui = ui.page_fluid(
     # style ----
+    # Available themes:
+    #  cerulean, cosmo, cyborg, darkly, flatly, journal, litera, lumen, lux,
+    #  materia, minty, morph, pulse, quartz, sandstone, simplex, sketchy, slate,
+    #  solar, spacelab, superhero, united, vapor, yeti, zephyr
+    shinyswatch.theme.cyborg(),
     ui.navset_tab(
         # elements ----
         ui.nav(
             "Writing",
-            ui.layout_sidebar(   
-                ui.panel_sidebar(   
+            ui.layout_sidebar(
+                ui.panel_sidebar(
                     ui.input_select(
                         "topic",
                         "Select input",
@@ -104,8 +106,9 @@ app_ui = ui.page_fluid(
                             "Effects of technology on communication": "Effects of technology on communication",
                             "Advantages and disadvantages of living in a city or countryside": "Advantages and disadvantages of living in a city or countryside",
                             "Importance of art education": "Importance of art education",
-                            "Benefits of group study vs. individual study": "Benefits of group study vs. individual study"
-                        }),
+                            "Benefits of group study vs. individual study": "Benefits of group study vs. individual study",
+                        },
+                    ),
                     ui.row(
                         ui.column(
                             8,
@@ -118,7 +121,9 @@ app_ui = ui.page_fluid(
                         ui.column(
                             12,
                             ui.div(
-                                ui.input_action_button("btnoverall", "Overall Performance"),
+                                ui.input_action_button(
+                                    "btnoverall", "Overall Performance"
+                                ),
                             ),
                         )
                     ),
@@ -139,10 +144,20 @@ app_ui = ui.page_fluid(
                         )
                     ),
                 ),
-                ui.panel_main(    
-                    ui.h2({"style": "text-align: center;"}, "English as Second Language: Writing"),
+                ui.panel_main(
+                    ui.h2(
+                        {"style": "text-align: center;"},
+                        "English as Second Language: Writing",
+                    ),
                     ui.h3({"style": "text-align: left;"}, "Essay Topic:"),
-                    ui.row(ui.column(12, ui.div({"class": "app-col"}, ui.output_text_verbatim("ques")))),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"}, ui.output_text_verbatim("ques")
+                            ),
+                        )
+                    ),
                     ui.row(
                         ui.column(
                             12,
@@ -157,9 +172,31 @@ app_ui = ui.page_fluid(
                             ),
                         )
                     ),
-                    ui.row(ui.column(12, ui.div({"class": "app-col"}, ui.output_text_verbatim("overall")))),
-                    ui.row(ui.column(12, ui.div({"class": "app-col"}, ui.output_text_verbatim("txt")))),
-                    ui.row(ui.column(12, ui.div({"class": "app-col"}, ui.output_text_verbatim("feedback")))),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"}, ui.output_text_verbatim("overall")
+                            ),
+                        )
+                    ),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"}, ui.output_text_verbatim("txt")
+                            ),
+                        )
+                    ),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.output_text_verbatim("feedback"),
+                            ),
+                        )
+                    ),
                 ),
             ),
         ),
@@ -171,7 +208,10 @@ app_ui = ui.page_fluid(
                         ui.column(
                             8,
                             ui.div(
-                                ui.input_action_button("chinese_to_english", "Type your idea, and create an image!"),
+                                ui.input_action_button(
+                                    "chinese_to_english",
+                                    "Type your idea, and create an image!",
+                                ),
                             ),
                         )
                     ),
@@ -191,13 +231,28 @@ app_ui = ui.page_fluid(
                             ),
                         )
                     ),
-                    ui.row(ui.column(12, ui.div({"class": "app-col"}, ui.output_text_verbatim("chinese_to_english_output")))),
-                    ui.row(ui.column(12, ui.div({"class": "app-col"}, ui.output_plot("chinese_to_english_output_plot")))),
-
-                )
-            )),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.output_text_verbatim("chinese_to_english_output"),
+                            ),
+                        )
+                    ),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.output_plot("chinese_to_english_output_plot"),
+                            ),
+                        )
+                    ),
+                ),
+            ),
+        ),
     ),
-
 )
 
 
@@ -217,7 +272,8 @@ def server(input, output, session):
     def ques():
         output = jarvis(
             "Create a random English essay topic. Make sure to list out requirements of 500 words limit.",
-            topic=input.topic())
+            topic=input.topic(),
+        )
         return f"Topic: {output}"
 
     @output
@@ -226,7 +282,8 @@ def server(input, output, session):
     def overall():
         output = jarvis(
             f"Provide an overall analysis of the following essay: {input.x()}. First, give a letter grade from A to D. A is the best and D is the worst. Then provide a tabular view of different perspective of the writing including the following: 1) did the essay address the question above (this is high priority, so make sure this affects the letter grade the most), 2) is the thesis clear?, 3) is the logic and organization clear?, 4) is there topic sentence following with supporting sentence?, 5) how is the transition in between paragraphs?, 6) how is the conclusion statement? Provide the answer in both English and Chinese.",
-            topic=None)
+            topic=None,
+        )
         return f"Overall: {output}"
 
     @output
@@ -234,17 +291,18 @@ def server(input, output, session):
     @reactive.event(input.btnsubmit)
     def txt():
         output = jarvis(
-            f"Check the grammar mistakes of the following: {input.x()}",
-            topic=None)
+            f"Check the grammar mistakes of the following: {input.x()}", topic=None
+        )
         return f"Grammar: {output}"
-    
+
     @output
     @render.text
     @reactive.event(input.btnfeedback)
     def feedback():
         output = jarvis(
             f"Did the above prompt answer the question before? Provide detailed critics and explain why. Please write the answer in both English and Chinese.",
-            topic=None)
+            topic=None,
+        )
         return f"Feedback: {output}"
 
     @output
@@ -266,7 +324,6 @@ def server(input, output, session):
         img = text_to_img(output)
 
         return plt.imshow(img[:, :, ::-1])
-
 
 
 app = App(app_ui, server, debug=True)
