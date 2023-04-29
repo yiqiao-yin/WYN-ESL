@@ -6,3 +6,5 @@ urllib3             ==   1.26.15
 openai              ==   0.27.3
 opencv-python       ==   4.7.0.72
 shinyswatch         ==   0.2.3
+pandas              ==   2.0.1
+python-dotenv       ==   1.0.0

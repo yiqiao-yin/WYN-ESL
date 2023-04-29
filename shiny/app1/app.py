@@ -1,30 +1,45 @@
+# shiny run shiny\app.py
+# rsconnect deploy shiny <PATH> --name ACCOUNT_NAME --title APP_NAME
+import os
 import urllib.request
-from typing import Union
+from pathlib import Path
+from typing import Dict, List, Union
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import openai
+import pandas as pd
 import shinyswatch
 from shiny import *
 
-# shiny run shiny\app.py
-# rsconnect deploy shiny <PATH> --name ACCOUNT_NAME --title APP_NAME
-import os
-from dotenv import load_dotenv, find_dotenv
-_ = load_dotenv(find_dotenv()) # read local .env file
+openai.api_key = "enter api key here"
 
-openai.api_key  = os.getenv('OPENAI_API_KEY')
 
 def jarvis(prompt: str, topic: Union[None, str]) -> str:
+    """
+    Uses the OpenAI API to generate an AI response to a prompt.
+
+    Args:
+        prompt: A string representing the prompt to send to the OpenAI API.
+        topic: An optional string to specify the topic for the AI to focus on. Default is None.
+
+    Returns:
+        A string representing the AI's generated response.
+
+    """
+
+    # If no topic is specified, use "Random" as the default topic.
     if topic is None:
         topic = "Random"
 
+    # If a topic is specified, include it in the prompt sent to the API.
     if topic == "Random":
         prompt = f"{prompt}"
     else:
         prompt = f"{prompt}. Make sure use the topic of {topic}."
 
+    # Use the OpenAI API to generate a response based on the input prompt.
     response = openai.Completion.create(
         model="text-davinci-003",
         prompt=prompt,
@@ -35,14 +50,29 @@ def jarvis(prompt: str, topic: Union[None, str]) -> str:
         presence_penalty=0,
     )
 
+    # Extract the text from the first (and only) choice in the response output.
     ans = response.choices[0]["text"]
 
+    # Return the generated AI response.
     return ans
 
 
 def chinese_to_english(prompt: str) -> str:
-    prompt = f"Translate the following Chinese into English: {prompt}. If it's already in English, just correct it's grammar."
+    """
+    Uses the OpenAI API to translate Chinese text into English or correct English grammar.
 
+    Args:
+        prompt: A string representing either Chinese language text to be translated or English text with incorrect grammar to be corrected.
+
+    Returns:
+        A string representing the translated or corrected English text.
+
+    """
+
+    # Construct a prompt that asks the AI to translate the input Chinese text into English, or correct English grammar if the input text is already in English.
+    prompt = f"Translate the following Chinese into English: {prompt}. If it's already in English, just correct its grammar."
+
+    # Use the OpenAI API to generate a response based on the input prompt.
     response = openai.Completion.create(
         model="text-davinci-003",
         prompt=prompt,
@@ -53,20 +83,67 @@ def chinese_to_english(prompt: str) -> str:
         presence_penalty=0,
     )
 
+    # Extract the text from the first (and only) choice in the response output.
     ans = response.choices[0]["text"]
 
+    # Return the generated AI response.
+    return ans
+
+
+def english_to_chinese(prompt: str) -> str:
+    """
+    Uses the OpenAI API to correct English grammar and translate the corrected English text into Chinese, providing pinyin pronunciation for each Chinese character.
+
+    Args:
+        prompt: A string representing English text with incorrect grammar to be corrected and translated into Chinese.
+
+    Returns:
+        A string representing the translated Chinese text, along with pinyin pronunciation for each Chinese character.
+
+    """
+
+    # Construct a prompt that asks the AI to correct the input English text's grammar and translate it into Chinese,
+    # while also providing pinyin pronunciation for each Chinese character in the output.
+    prompt = f"Correct the English grammar. Then translate the English into Chinese: {prompt}. For each of the Chinese characters, please also provide the Chinese pinyin with tones."
+
+    # Use the OpenAI API to generate a response based on the input prompt.
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=prompt,
+        temperature=0.5,
+        max_tokens=500,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+    )
+
+    # Extract the text from the first (and only) choice in the response output.
+    ans = response.choices[0]["text"]
+
+    # Return the generated AI response.
     return ans
 
 
 def url_to_image(url: str) -> np.ndarray:
-    # Download the image using urllib
+    """
+    Downloads an image from a given URL using urllib, and converts it to a numpy array for use with OpenCV.
+
+    Args:
+        url: A string representing URL of the image to be downloaded.
+
+    Returns:
+        A numpy array representing the downloaded image.
+
+    """
+
+    # Download the image using urllib.
     with urllib.request.urlopen(url) as url_response:
         img_array = bytearray(url_response.read())
 
-    # Convert the byte array to a numpy array for use with OpenCV
+    # Convert the byte array to a numpy array for use with OpenCV.
     img = cv2.imdecode(np.asarray(img_array), cv2.IMREAD_UNCHANGED)
 
-    # Return the image as a numpy array
+    # Return the image as a numpy array.
     return img
 
 
@@ -79,13 +156,66 @@ def text_to_img(prompt: str) -> np.ndarray:
     return image
 
 
+def convert_to_list_of_dict(df: pd.DataFrame) -> List[Dict[str, str]]:
+    """
+    Reads in a pandas DataFrame and produces a list of dictionaries with two keys each, 'question' and 'answer.'
+
+    Args:
+        df: A pandas DataFrame with columns named 'questions' and 'answers'.
+
+    Returns:
+        A list of dictionaries, with each dictionary containing a 'question' and 'answer' key-value pair.
+    """
+
+    # Initialize an empty list to store the dictionaries
+    result = []
+
+    # Loop through each row of the DataFrame
+    for index, row in df.iterrows():
+        # Create a dictionary with the current question and answer
+        qa_dict_quest = {"role": "user", "content": row["questions"]}
+        qa_dict_ans = {"role": "assistant", "content": row["answers"]}
+
+        # Add the dictionary to the result list
+        result.append(qa_dict_quest)
+        result.append(qa_dict_ans)
+
+    # Return the list of dictionaries
+    return result
+
+
+def get_completion_from_messages(
+    messages: List[Dict[str, str]], model: str = "gpt-3.5-turbo", temperature: float = 0
+) -> str:
+    """Generates a response based on the given conversation messages using OpenAI's ChatCompletion API.
+
+    Args:
+        messages (List[Dict[str, str]]): A list of messages that make up the conversation history.
+        model (str, optional): The name of the AI model to use. Defaults to "gpt-3.5-turbo".
+        temperature (float, optional): The degree of randomness of the model's output. Defaults to 0.
+
+    Returns:
+        str: The response generated by the AI model.
+    """
+
+    # Call the OpenAI ChatCompletion API with the provided parameters
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+    )
+
+    # Extract and return the text content of the first message in the response choices
+    return response.choices[0].message["content"]
+
+
 app_ui = ui.page_fluid(
     # style ----
     # Available themes:
     #  cerulean, cosmo, cyborg, darkly, flatly, journal, litera, lumen, lux,
     #  materia, minty, morph, pulse, quartz, sandstone, simplex, sketchy, slate,
     #  solar, spacelab, superhero, united, vapor, yeti, zephyr
-    shinyswatch.theme.cyborg(),
+    shinyswatch.theme.simplex(),
     ui.navset_tab(
         # elements ----
         ui.nav(
@@ -252,6 +382,94 @@ app_ui = ui.page_fluid(
                 ),
             ),
         ),
+        ui.nav(
+            "Learn Chinese",
+            ui.layout_sidebar(
+                ui.panel_sidebar(
+                    ui.row(
+                        ui.column(
+                            8,
+                            ui.div(
+                                ui.input_action_button(
+                                    "english_to_chinese_btn",
+                                    "Type what you want to say in English!",
+                                )
+                            ),
+                        )
+                    )
+                ),
+                ui.panel_main(
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.input_text_area(
+                                    "english_to_chinese_input",
+                                    "Enter English here:",
+                                    width="100%",
+                                    placeholder="Hello, my name is Frannie!",
+                                ),
+                            ),
+                        )
+                    ),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.output_text_verbatim(
+                                    "english_to_chinese_input_output"
+                                ),
+                            ),
+                        )
+                    ),
+                ),
+            ),
+        ),
+        ui.nav(
+            "Clinical Trial ChatBot",
+            ui.layout_sidebar(
+                ui.panel_sidebar(
+                    ui.row(
+                        ui.column(
+                            8,
+                            ui.div(
+                                ui.input_action_button(
+                                    "clinical_trials_chatbot_btn",
+                                    "Ask me anything!",
+                                )
+                            ),
+                        )
+                    )
+                ),
+                ui.panel_main(
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.input_text_area(
+                                    "clinical_trials_chatbot_input",
+                                    "Enter your question here regarding clinical trials:",
+                                    width="100%",
+                                    placeholder="What is the purpose of a clinical trial?",
+                                ),
+                            ),
+                        )
+                    ),
+                    ui.row(
+                        ui.column(
+                            12,
+                            ui.div(
+                                {"class": "app-col"},
+                                ui.output_text("clinical_trials_chatbot_input_output"),
+                            ),
+                        )
+                    ),
+                ),
+            ),
+        ),
     ),
 )
 
@@ -324,6 +542,29 @@ def server(input, output, session):
         img = text_to_img(output)
 
         return plt.imshow(img[:, :, ::-1])
+
+    @output
+    @render.text
+    @reactive.event(input.english_to_chinese_btn)
+    def english_to_chinese_input_output():
+        output = english_to_chinese(
+            prompt=input.english_to_chinese_input(),
+        )
+        return f"Processed prompt in English: {output}"
+
+    @output
+    @render.text
+    @reactive.event(input.clinical_trials_chatbot_btn)
+    def clinical_trials_chatbot_input_output():
+        infile = Path(__file__).parent / "clinical_trials_qa.csv"
+        df = pd.read_csv(infile)
+        # Use the DataFrame's to_html() function to convert it to an HTML table, and
+        # then wrap with ui.HTML() so Shiny knows to treat it as raw HTML.
+        qa_pairs = convert_to_list_of_dict(df.head(15))
+        user_question = input.clinical_trials_chatbot_input()
+        qa_pairs.append({"role": "user", "content": user_question})
+        response = get_completion_from_messages(qa_pairs, temperature=1)
+        return f"AI Doctor: {response}"
 
 
 app = App(app_ui, server, debug=True)
