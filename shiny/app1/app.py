@@ -11,9 +11,11 @@ import numpy as np
 import openai
 import pandas as pd
 import shinyswatch
+from scipy.spatial.distance import cosine
+# from sentence_transformers import SentenceTransformer
 from shiny import *
 
-openai.api_key = "enter api key here"
+openai.api_key = "enter_api_key_here"
 
 
 def jarvis(prompt: str, topic: Union[None, str]) -> str:
@@ -209,13 +211,89 @@ def get_completion_from_messages(
     return response.choices[0].message["content"]
 
 
+def split_paragraph(paragraph: str) -> str:
+    """
+    Takes a long paragraph as input, splits it every 50 characters and adds a newline character "\n"
+    so that each line is no more than 50 characters long.
+
+    :param paragraph: The long paragraph to be split.
+    :type paragraph: str
+    :return: A string with newline characters added after every 50 characters.
+    :rtype: str
+    """
+    sentences = paragraph.split(". ")
+    new_paragraph = ""
+    for sentence in sentences:
+        words = sentence.split()
+        new_sentence = ""
+        for word in words:
+            if len(new_sentence + word) > 40:
+                new_paragraph += new_sentence.strip() + "\n"
+                new_sentence = ""
+            new_sentence += word + " "
+        new_paragraph += new_sentence.strip() + ". "
+    return new_paragraph[:-2]  # Remove the last period and space
+
+
+def calculate_cosine_similarity(sentence1: str, sentence2: str) -> float:
+    """
+    Calculate the cosine similarity between two sentences.
+    
+    Args:
+        sentence1 (str): The first sentence.
+        sentence2 (str): The second sentence.
+    
+    Returns:
+        float: The cosine similarity between the two sentences, represented as a float value between 0 and 1.
+    """
+    # Tokenize the sentences into words
+    words1 = sentence1.lower().split()
+    words2 = sentence2.lower().split()
+    
+    # Create a set of unique words from both sentences
+    unique_words = set(words1 + words2)
+    
+    # Create a frequency vector for each sentence
+    freq_vector1 = np.array([words1.count(word) for word in unique_words])
+    freq_vector2 = np.array([words2.count(word) for word in unique_words])
+    
+    # Calculate the cosine similarity between the frequency vectors
+    similarity = 1 - cosine(freq_vector1, freq_vector2)
+    
+    return similarity
+
+
+def calculate_sts_score(sentence1: str, sentence2: str) -> float:
+    model = SentenceTransformer(
+        "paraphrase-MiniLM-L6-v2"
+    )  # Load a pre-trained STS model
+
+    # Compute sentence embeddings
+    embedding1 = model.encode([sentence1])[0]  # Flatten the embedding array
+    embedding2 = model.encode([sentence2])[0]  # Flatten the embedding array
+
+    # Calculate cosine similarity between the embeddings
+    similarity_score = 1 - cosine(embedding1, embedding2)
+
+    return similarity_score
+
+
+def add_dist_score_column(dataframe: pd.DataFrame, sentence: str) -> pd.DataFrame:
+    dataframe["sts_score"] = dataframe["questions"].apply(
+        lambda x: calculate_cosine_similarity(x, sentence)
+    )
+    sorted_dataframe = dataframe.sort_values(by="sts_score", ascending=False)
+
+    return sorted_dataframe.iloc[:15,:]
+
+
 app_ui = ui.page_fluid(
     # style ----
     # Available themes:
     #  cerulean, cosmo, cyborg, darkly, flatly, journal, litera, lumen, lux,
     #  materia, minty, morph, pulse, quartz, sandstone, simplex, sketchy, slate,
     #  solar, spacelab, superhero, united, vapor, yeti, zephyr
-    shinyswatch.theme.simplex(),
+    shinyswatch.theme.cerulean(),
     ui.navset_tab(
         # elements ----
         ui.nav(
@@ -463,7 +541,9 @@ app_ui = ui.page_fluid(
                             12,
                             ui.div(
                                 {"class": "app-col"},
-                                ui.output_text("clinical_trials_chatbot_input_output"),
+                                ui.output_text_verbatim(
+                                    "clinical_trials_chatbot_input_output"
+                                ),
                             ),
                         )
                     ),
@@ -552,19 +632,34 @@ def server(input, output, session):
         )
         return f"Processed prompt in English: {output}"
 
-    @output
-    @render.text
+    x = reactive.Value("Conversation starts here: \n \n")
+
+    @reactive.Effect
     @reactive.event(input.clinical_trials_chatbot_btn)
-    def clinical_trials_chatbot_input_output():
+    def _():
         infile = Path(__file__).parent / "clinical_trials_qa.csv"
         df = pd.read_csv(infile)
         # Use the DataFrame's to_html() function to convert it to an HTML table, and
         # then wrap with ui.HTML() so Shiny knows to treat it as raw HTML.
-        qa_pairs = convert_to_list_of_dict(df.head(15))
         user_question = input.clinical_trials_chatbot_input()
+        df_screened_by_dist_score = add_dist_score_column(df, user_question)
+        qa_pairs = convert_to_list_of_dict(df_screened_by_dist_score)
         qa_pairs.append({"role": "user", "content": user_question})
         response = get_completion_from_messages(qa_pairs, temperature=1)
-        return f"AI Doctor: {response}"
+        x.set(
+            x()
+            + " \n\nUser: "
+            + user_question
+            + " \nAI Doctor: "
+            + split_paragraph(response)
+            + "\n\n"
+        )
+
+    @output
+    @render.text
+    @reactive.event(input.clinical_trials_chatbot_btn)
+    def clinical_trials_chatbot_input_output():
+        return str(x())
 
 
 app = App(app_ui, server, debug=True)
